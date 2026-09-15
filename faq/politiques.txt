@@ -1,0 +1,20 @@
+## Annulation et remboursement
+Une réservation peut être annulée gratuitement jusqu'à 24 heures avant l'heure du match : dans ce cas, l'avance payée en ligne est intégralement remboursée. Passé ce délai de 24 heures, l'annulation reste possible mais l'avance n'est plus remboursable. Le remboursement, quand il est dû, est traité sur le même moyen de paiement utilisé (Wave ou Orange Money).
+
+## Paiement de l'avance et du solde
+Pour réserver un créneau, seule une avance est à payer en ligne au moment de la réservation, via Wave ou Orange Money (agrégés par PayTech). Le montant de l'avance dépend du terrain (minimum 5 000 FCFA). Le solde restant (différence entre le prix total et l'avance) se règle en espèces directement sur place, le jour du match, auprès du gérant du terrain.
+
+## Expiration d'une réservation non payée
+Après avoir choisi un créneau, l'amateur dispose de 15 minutes pour payer l'avance. Si le paiement n'est pas confirmé dans ce délai, la réservation est automatiquement annulée et le créneau redevient disponible pour quelqu'un d'autre.
+
+## Abonnement mensuel des gérants
+Un gérant de terrain paie un abonnement mensuel de 7 500 FCFA pour publier et gérer ses terrains sur Sama-Terrain. Après validation de son compte par un administrateur, il bénéficie de 7 jours d'essai gratuit. Une fois l'essai terminé, l'abonnement doit être payé via PayTech pour garder l'accès à l'espace gérant : si l'abonnement expire sans renouvellement, l'accès est automatiquement suspendu jusqu'au paiement.
+
+## Validation d'un compte gérant
+Pour devenir gérant, il faut soumettre un formulaire avec un document justificatif (pièce d'identité ou registre de commerce/RCCM). Le compte reste inactif tant qu'un administrateur n'a pas validé la demande, généralement sous 24 heures. Si la demande est rejetée, le motif du rejet est envoyé par email, et une nouvelle demande peut être soumise avec le même email après correction.
+
+## Vérification de l'adresse email
+À l'inscription (amateur ou gérant), un code de vérification à 6 chiffres est envoyé par email. Ce code est valable 15 minutes ; passé ce délai, il faut demander un nouveau code via le bouton "Renvoyer le code". Le compte ne peut pas se connecter tant que l'email n'est pas vérifié.
+
+## Moyens de paiement acceptés
+Sama-Terrain accepte les paiements en ligne via Wave et Orange Money, grâce à l'agrégateur PayTech. Aucun paiement par carte bancaire internationale n'est proposé pour le moment. Le solde restant après l'avance se paie uniquement en espèces sur place.
