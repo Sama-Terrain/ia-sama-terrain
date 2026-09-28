@@ -1,4 +1,5 @@
 import logging
+import unicodedata
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
@@ -232,11 +233,12 @@ def chatbot(payload: MessageChatbot):
                 "explicitement.\n"
                 "4. Ne demande jamais de mot de passe, de code de vérification "
                 "ou d'informations bancaires.\n"
-                "5. Des boutons de redirection (vers une fiche terrain, la "
-                "recherche, etc.) s'affichent automatiquement sous ta réponse "
-                "quand c'est pertinent : ne redonne donc jamais de lien ou "
-                "d'URL toi-même, contente-toi d'inviter la personne à cliquer "
-                "dessus si besoin (ex: \"vous pouvez cliquer ci-dessous\")."
+                "5. Un bouton vers la bonne page (fiche terrain, recherche, "
+                "mes réservations, devenir gérant...) s'affiche AUTOMATIQUEMENT "
+                "sous ta réponse quand c'est pertinent, même si tu n'as pas "
+                "accès au lien exact toi-même. Ne dis donc jamais que tu ne "
+                "peux pas fournir de lien : dis simplement à la personne de "
+                "cliquer sur le bouton ci-dessous."
             ),
         },
         {
@@ -257,13 +259,24 @@ def chatbot(payload: MessageChatbot):
     return {"texte": texte, "liens": construire_liens(message, terrains_pour_liens)}
 
 
+def enlever_accents(texte):
+    """
+    Retire les accents ("réservation" -> "reservation") pour comparer les
+    messages sans dépendre de la façon dont l'utilisateur les tape (beaucoup
+    écrivent sans accents, surtout sur mobile).
+    """
+    return "".join(
+        c for c in unicodedata.normalize("NFD", texte) if unicodedata.category(c) != "Mn"
+    )
+
+
 def construire_liens(message, terrains_trouves):
     """
     Propose des liens de redirection vers de vraies pages du site, en plus
     de la réponse textuelle. Construits ici (pas par le LLM) : ils ne
     pointent donc jamais vers un terrain ou une page inventée.
     """
-    message_minuscule = message.lower()
+    message_normalise = enlever_accents(message.lower())
     liens = []
 
     # Des terrains précis ont été trouvés : on propose d'aller directement
@@ -271,16 +284,15 @@ def construire_liens(message, terrains_trouves):
     for terrain in terrains_trouves[:3]:
         liens.append({"label": f"Voir {terrain['nom']}", "url": f"/terrains/{terrain['id']}"})
 
-    if not liens and any(mot in message_minuscule for mot in ["réserv", "terrain", "jouer", "match"]):
+    if any(mot in message_normalise for mot in ["mes reservation", "ma reservation", "historique", "annul", "rembours", "acceder a mes", "lien pour"]):
+        liens.append({"label": "Mes réservations", "url": "/reservations"})
+    elif not liens and any(mot in message_normalise for mot in ["reserv", "terrain", "jouer", "match"]):
         liens.append({"label": "Rechercher un terrain", "url": "/terrains"})
 
-    if any(mot in message_minuscule for mot in ["mes réservation", "ma réservation", "historique", "annul", "rembours"]):
-        liens.append({"label": "Mes réservations", "url": "/reservations"})
-
-    if any(mot in message_minuscule for mot in ["gérant", "gerant", "propriétaire", "mon terrain", "louer mon", "inscrire mon"]):
+    if any(mot in message_normalise for mot in ["gerant", "proprietaire", "mon terrain", "louer mon", "inscrire mon"]):
         liens.append({"label": "Devenir gérant", "url": "/gerant"})
 
-    if "abonnement" in message_minuscule:
+    if "abonnement" in message_normalise:
         liens.append({"label": "Mon abonnement", "url": "/gerant/abonnement"})
 
     return liens
