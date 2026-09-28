@@ -65,6 +65,10 @@ def nettoyer_reponse(texte):
     longue plutôt que de renvoyer un pavé de texte au frontend.
     """
     texte = texte.strip()
+
+    # On ne renvoie jamais une réponse vide (ex: si le LLM a renvoyé juste des
+    # espaces ou des sauts de ligne).
+    # .rstrip(" .,;:!?") permet de supprimer les espaces et certains signes de ponctuation à la fin du texte, pour éviter de renvoyer une réponse qui ne contient que ces caractères.
     if len(texte) > LONGUEUR_MAX_REPONSE:
         texte = texte[:LONGUEUR_MAX_REPONSE].rsplit(" ", 1)[0] + "…"
     return texte
