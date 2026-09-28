@@ -22,6 +22,10 @@ def demander_au_llm(messages, temperature=0.4):
     if not OPENROUTER_API_KEY:
         raise RuntimeError("OPENROUTER_API_KEY manquante : ajoute-la dans IA/.env")
 
+
+    # Sous forte charge, certains modèles gratuits renvoient un HTTP 200
+    # avec un corps d'erreur (pas de "choices") au lieu d'un vrai 4xx/5xx : on le détecte 
+    # explicitement pour avoir un message clair dans les logs plutôt qu'un KeyError opaque.
     reponse = requests.post(
         OPENROUTER_URL,
         headers={
