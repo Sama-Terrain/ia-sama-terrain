@@ -7,13 +7,14 @@ Projet réalisé dans le cadre de la certification **DWWM + IA** — Simplon Sé
 ## Sommaire
 
 - [Rôle dans l'architecture globale](#rôle-dans-larchitecture-globale)
-- [Les 2 fonctionnalités IA](#les-2-fonctionnalités-ia)
+- [Les fonctionnalités IA](#les-fonctionnalités-ia)
 - [Stack technique](#stack-technique)
 - [Organisation du code](#organisation-du-code)
 - [Installation et lancement](#installation-et-lancement)
 - [Variables d'environnement](#variables-denvironnement)
 - [Choisir un modèle sur OpenRouter](#choisir-un-modèle-sur-openrouter)
 - [Points d'attention / limites connues](#points-dattention--limites-connues)
+- [Perspectives d'évolution](#perspectives-dévolution)
 
 ## Rôle dans l'architecture globale
 
@@ -36,7 +37,7 @@ Projet réalisé dans le cadre de la certification **DWWM + IA** — Simplon Sé
 
 Django ne parle **jamais directement** à OpenRouter : il relaie toujours la requête à ce service (`IA_SERVICE_URL`, voir `backend/.env`), qui lui seul détient la clé API et la logique de prompt.
 
-## Les 2 fonctionnalités IA
+## Les fonctionnalités IA
 
 ### 1. Chatbot d'assistance (`POST /chatbot`)
 
@@ -49,7 +50,24 @@ Répond aux questions des amateurs sur la page d'accueil publique (réservation,
 5. **Garde-fou de sortie** (`garde_fous.nettoyer_reponse`) : tronque une réponse anormalement longue.
 6. En cas d'échec du LLM (timeout, erreur fournisseur, quota dépassé) : réponse de secours générique, jamais une erreur brute.
 
-### 2. Prédictions de demande / prix (`GET /predictions/{terrain_id}`)
+### 2. Réservation assistée par conversation (`POST /chatbot`, `reservation_assistee.py`)
+
+Le chatbot peut préparer une réservation en plusieurs échanges :
+
+> Joueur : « Je veux réserver demain à 20 h. »
+> IA : « Quel terrain souhaitez-vous réserver ? Disponibles demain à 20h : … »
+> Joueur : « Le terrain Almadies. »
+> IA : « Le créneau … est disponible pour 30 000 FCFA. Voulez-vous confirmer ? » + bouton « Confirmer sur la page du terrain »
+
+Trois étapes, chacune avec un rôle séparé :
+
+1. **L'IA comprend** : le LLM lit les derniers messages de l'utilisateur (français ou wolof) et renvoie `{"date", "heure", "terrain_id"}` en JSON. Chaque valeur est vérifiée : une date hors des 14 prochains jours, une heure mal formée ou un terrain inexistant est ignoré.
+2. **La plateforme vérifie** : une requête SQL en lecture seule sur `creneaux_creneau` dit si le créneau est libre et à quel prix. Les réponses sont écrites en Python, pas par le LLM : un prix ne peut pas être déformé.
+3. **L'utilisateur confirme** : le service ne crée **aucune** réservation et ne déclenche **aucun** paiement. Il renvoie un lien `/terrains/{id}?date=…&creneau=…` : la fiche terrain présélectionne le créneau, puis l'amateur suit le parcours habituel (réservation → `/paiement` → PayTech).
+
+Le frontend envoie les derniers messages de l'utilisateur (`historique`) : le service ne stocke aucune session. Si le LLM est indisponible, l'assistant propose simplement d'aller sur la page de recherche. Les questions sur un autre sujet (mes réservations, annulation, abonnement…) restent traitées par le chatbot général.
+
+### 3. Prédictions de demande / prix (`GET /predictions/{terrain_id}`)
 
 Alimente le dashboard et la page "Insights IA" du gérant :
 
@@ -73,6 +91,8 @@ Alimente le dashboard et la page "Insights IA" du gérant :
 
 ```
 main.py          Points d'entrée FastAPI : /health, /predictions/{id}, /chatbot
+reservation_assistee.py  Réservation assistée : le LLM extrait date/heure/terrain, SQL vérifie le créneau
+texte.py         Normalisation du texte (minuscules, accents) partagée
 llm.py           Appel HTTP à OpenRouter (modèle, clé API, timeout)
 garde_fous.py    Validation du message entrant + nettoyage de la réponse sortante
 rag.py           Indexation et recherche sémantique dans faq/ (embeddings, similarité cosinus)
@@ -146,4 +166,11 @@ Liste des modèles gratuits actuellement proposés par OpenRouter : `GET https:/
 - **Modèles "raisonneurs"** : certains modèles gratuits (suffixés `reasoning`, ou orientés chaîne de pensée) peuvent renvoyer leur raisonnement interne brut dans le champ `content` au lieu d'une réponse propre. Préférer un modèle conversationnel classique pour le chatbot.
 - **Erreurs silencieuses** : `main.py` capture toute exception LLM avec `logger.exception(...)` avant de retomber sur un message de secours — toujours consulter `docker compose logs ia` en cas de comportement inattendu plutôt que de deviner.
 - **Le RAG ne connaît que `faq/politiques.txt`** : pour enrichir les réponses sur d'autres sujets (nouvelles règles, nouveaux moyens de paiement...), ajouter un fichier `.txt` dans `faq/` — l'index est reconstruit automatiquement au prochain redémarrage du service (mis en cache en mémoire via `@lru_cache`, pas rechargé à chaud).
-- **Aucun test automatisé** n'est en place pour le moment sur ce service.
+- **Tests automatisés** : seule la réservation assistée est couverte (`python -m unittest test_reservation_assistee`, sans base ni LLM grâce à des doublures).
+
+## Perspectives d'évolution
+
+Fonctionnalités **non disponibles** à ce jour, préparées dans l'architecture :
+
+- **Assistant vocal (français / wolof)** : la réservation assistée prend du texte en entrée et ne dépend pas du canal. Un assistant vocal consisterait à ajouter une étape de transcription (speech-to-text via une API externe, comme le reste de l'IA du projet) avant le même `POST /chatbot` : « Je veux réserver un terrain demain soir près de Parcelles Assainies » suivrait alors exactement le même parcours (compréhension → vérification en base → confirmation par l'utilisateur). Points à valider avant de s'engager : qualité de la transcription du wolof par les API disponibles, et compréhension du wolof par le LLM utilisé. Aucune dépendance audio n'est installée pour l'instant.
+- **Rapports hebdomadaires des gérants** : rédigés par un agent IA dans N8n, à partir des chiffres fournis par le backend (voir `GET /api/gerant/n8n/rapport-hebdomadaire/` dans le [README du backend](../backend/README.md)). Ce service n'y intervient pas.
