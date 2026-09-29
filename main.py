@@ -1,5 +1,4 @@
 import logging
-import unicodedata
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
@@ -9,6 +8,8 @@ from db import executer, executer_ecriture
 from garde_fous import message_entrant_valide, nettoyer_reponse
 from llm import demander_au_llm
 from rag import rechercher
+from reservation_assistee import est_parcours_reservation, repondre as repondre_reservation
+from texte import enlever_accents
 
 # Crée ou récupère un logger nommé "sama_ia".
 # Il permet d'enregistrer les informations, avertissements et erreurs
@@ -153,6 +154,10 @@ def predictions(terrain_id: int):
 
 class MessageChatbot(BaseModel):
     message: str
+    # Messages précédents de l'utilisateur (du plus ancien au plus récent),
+    # pour qu'une réservation puisse se préparer en plusieurs échanges
+    # ("demain 20h" puis "le terrain Almadies"). Facultatif.
+    historique: list[str] = []
 
 
 @app.post("/chatbot")
@@ -164,6 +169,12 @@ def chatbot(payload: MessageChatbot):
     refus = message_entrant_valide(message)
     if refus:
         return {"texte": refus}
+
+    # Réservation assistée : l'IA comprend la demande, la disponibilité est
+    # vérifiée en base, et l'utilisateur confirme lui-même sur la page du
+    # terrain (voir reservation_assistee.py). Rien n'est réservé ici.
+    if est_parcours_reservation(message, payload.historique):
+        return repondre_reservation(message, payload.historique)
 
     # On cherche de vrais terrains correspondant au message (ville/quartier
     # ou nom cité), pour que le chatbot ne parle jamais de terrains ou de
@@ -257,17 +268,6 @@ def chatbot(payload: MessageChatbot):
         )
 
     return {"texte": texte, "liens": construire_liens(message, terrains_pour_liens)}
-
-
-def enlever_accents(texte):
-    """
-    Retire les accents ("réservation" -> "reservation") pour comparer les
-    messages sans dépendre de la façon dont l'utilisateur les tape (beaucoup
-    écrivent sans accents, surtout sur mobile).
-    """
-    return "".join(
-        c for c in unicodedata.normalize("NFD", texte) if unicodedata.category(c) != "Mn"
-    )
 
 
 def construire_liens(message, terrains_trouves):
