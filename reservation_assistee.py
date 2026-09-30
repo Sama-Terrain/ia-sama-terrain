@@ -78,6 +78,15 @@ def repondre(message, historique):
         JOIN terrains_terrain t ON t.id = c.terrain_id
         WHERE t.actif = true AND c.statut = 'disponible'
           AND c.date = :jour AND c.heure_debut = :heure
+          -- L'assistant propose le terrain complet (portion 0), et seulement
+          -- si aucune de ses portions n'est déjà prise à cette heure.
+          AND c.portion = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM creneaux_creneau p
+            WHERE p.terrain_id = c.terrain_id AND p.date = c.date
+              AND p.heure_debut = c.heure_debut AND p.portion > 0
+              AND p.statut <> 'disponible'
+          )
         """,
         jour=jour,
         heure=heure,

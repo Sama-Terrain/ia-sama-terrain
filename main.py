@@ -90,6 +90,9 @@ def predictions(terrain_id: int):
             WHERE terrain_id = :terrain_id
               AND heure_debut = :heure_debut
               AND statut = 'disponible'
+              -- Le prix recommandé est calculé sur le prix du terrain
+              -- complet : on ne l'applique pas aux portions (moins chères).
+              AND portion = 0
             """,
             niveau=ligne["niveau"],
             prix=prix_recommande,
